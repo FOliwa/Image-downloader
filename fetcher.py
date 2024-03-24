@@ -1,12 +1,15 @@
 import os
 import re
 import requests
+from time import sleep
 
 
 class ImageFetcherService():
 
-    def __init__(self, url) -> None:
+    def __init__(self, url: str, is_textbook: bool = False) -> None:
         self.url = url
+        self.is_textbook = is_textbook
+
         self.image_path = None
         self.current_image = None
         self.pdf_dir_path = None
@@ -15,12 +18,20 @@ class ImageFetcherService():
 
     def get_data_from_link(self):
         img_num_pattern = r"\b\d{6}\b"
-        document_name_pattern = r"\w+-\w{2}-\w+"
 
-        document_name = re.findall(document_name_pattern, self.url).pop()
-        module_name, chapter_idx, chapter_name  = document_name.split("-")
-        chapter_name = re.sub("_pdf", "", chapter_name)
+        if self.is_textbook:
+            document_name_pattern = r"\w+-\w+_pdf"
+        else:
+            document_name_pattern = r"\w+-\w{2}-\w+"
         
+        document_name = re.findall(document_name_pattern, self.url).pop()
+        if self.is_textbook:
+            module_name, chapter_name  = document_name.split("-")
+            chapter_idx = "textbook"
+        else:
+            module_name, chapter_idx, chapter_name  = document_name.split("-")
+            chapter_name = re.sub("_pdf", "", chapter_name)
+            
         self.current_image = re.findall(img_num_pattern, self.url).pop()
         self.image_path = f"./assets/images/{module_name}/{chapter_idx}/{chapter_name}"
         self.pdf_dir_path = f"./assets/pdfs/{module_name}/{chapter_idx}"
@@ -35,6 +46,10 @@ class ImageFetcherService():
                 print(f"[LOG] Image already saved! {self.image_path}/{self.current_image}.png")
             else:
                 print(f"[LOG] Request the image! Index: {self.current_image}")
+            
+                # TODO: Is it necessary? Dummy throttling protection
+                sleep(1)
+             
                 response = requests.get(self.url)
                 if response.status_code == 200:
                     self.save_image(response.content)
